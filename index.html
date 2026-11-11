@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scam Watch BW</title>
+<style>
+:root{--bg:#f6f7f4;--card:#fff;--ink:#1c2420;--mut:#5d6a62;--line:#dfe4dd;--acc:#0f6b4f;--accink:#fff;--warn:#b45309;--bad:#b42318;--chip:#eef2ec;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#121715;--card:#1a211e;--ink:#e8eee9;--mut:#9aa8a0;--line:#2b3631;--acc:#4cc59a;--accink:#08130e;--warn:#f0a94b;--bad:#f2837a;--chip:#232d28;color-scheme:dark}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:16px}
+h1{font-size:1.45rem;margin:8px 0 2px}.sub{color:var(--mut);margin:0 0 12px}
+nav{display:flex;gap:6px;margin:12px 0;flex-wrap:wrap}nav button{flex:1}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0}
+label{display:block;font-weight:600;margin:12px 0 4px;font-size:.9rem}
+input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+input[type=checkbox]{width:auto;margin-right:6px}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 12px}
+button.p{background:var(--acc);color:var(--accink);border-color:var(--acc)}button:disabled{opacity:.5;cursor:not-allowed}
+.chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:.78rem;background:var(--chip);color:var(--mut);font-weight:700}
+.chip.confirmed{color:var(--bad)}.chip.reported{color:var(--warn)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.mut{color:var(--mut);font-size:.88rem}
+.ident{font-family:ui-monospace,Menlo,monospace;word-break:break-all;font-weight:700;margin:8px 0 4px}
+.note{border-left:3px solid var(--warn);padding:8px 10px;background:var(--chip);border-radius:6px;margin:8px 0;font-size:.92rem}
+p{margin:6px 0}
+.abar{background:var(--acc);color:var(--accink);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0}
+.abar button{background:transparent;color:inherit;border-color:currentColor}.admmode .card{border-left:4px solid var(--acc)}
+</style></head>
+<body><div class="wrap" id="app"></div>
+<script src="config.js"></script>
+<script type="module">
+import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
+const CFG=window.SCAM_CONFIG||{url:'',key:''};
+const DEMO=!CFG.url||CFG.url.includes('YOUR-PROJECT');
+const sb=createClient(DEMO?'https://example.supabase.co':CFG.url,DEMO?'demo':CFG.key);
+const CATS=['Fake job or scholarship','Loan or advance fee','Mobile money or airtime','Investment, forex or crypto','Romance','Prize or lottery','Impersonating a bank, police or utility','Online shop or marketplace','Phishing link or fake website','Fake tender or supplier','Other'];
+const INFO={'Fake job or scholarship':'Asks you to pay a fee, deposit or send ID before any interview or offer.','Loan or advance fee':'Promises a loan, then asks for an upfront “insurance” or processing payment.','Mobile money or airtime':'“Wrong transfer” or reversal messages, or anyone asking for your PIN or OTP.','Investment, forex or crypto':'Promises fast, guaranteed returns, or pays small early “profits” to hook you.','Romance':'Someone you only know online builds trust, then asks for money.','Prize or lottery':'Says you won something you never entered, but you must pay to claim it.','Impersonating a bank, police or utility':'Pressures you to act now and asks for PINs, OTPs or to move your money.','Online shop or marketplace':'Prices too good to be true, pay first, and no delivery or real address.','Phishing link or fake website':'A link to a fake login or payment page that copies a real brand.','Fake tender or supplier':'Asks suppliers to pay a fee to win a tender or order.','Other':'Anything that does not fit above. Reviewers may recategorize it.'};
+const CH=['Phone call','SMS','WhatsApp','Facebook','Instagram or TikTok','Email','Website','Other'];
+const FOOT='Your email is used only to sign you in and is never shown. Reports stay private until reviewers verify them. This site is not a police or government service.';
+const now=new Date().toISOString();
+const SAMPLE=[{id:'s1',identifier:'+267 71 000 000 (sample)',category:'Fake job or scholarship',channel:'WhatsApp',status:'confirmed',report_count:6,summary:'Sample: offers a job, then asks for a “registration fee” first.',updated_at:now},{id:'s2',identifier:'Wrong-transfer SMS (sample)',category:'Mobile money or airtime',channel:'SMS',status:'reported',report_count:4,summary:'Sample: says money was sent by mistake and asks you to send it back.',updated_at:now},{id:'s3',identifier:'fast-forex-returns.example (sample)',category:'Investment, forex or crypto',channel:'Website',status:'reported',report_count:3,summary:'Sample: promises guaranteed daily returns on a small deposit.',updated_at:now}];
+const blank=()=>({category:CATS[0],channel:CH[0],identifier:'',claim:'',amount:'',happened_on:'',evidence:'',dispute:false});
+const S={tab:'alerts',user:null,admin:false,mode:'public',alerts:[],reports:[],chat:[],admins:[],cat:'all',msg:'',form:blank(),drafts:{},showAll:false,dirty:false};
+const $=s=>document.querySelector(s);
+const h=(t,a={},...k)=>{const e=document.createElement(t);for(const[x,v]of Object.entries(a)){if(x==='class')e.className=v;else if(x.startsWith('on'))e.addEventListener(x.slice(2),v);else if(v===true)e.setAttribute(x,'');else if(v!==false&&v!=null)e.setAttribute(x,v)}for(const c of k.flat())if(c!=null&&c!==false)e.append(c.nodeType?c:document.createTextNode(c));return e};
+const norm=s=>String(s||'').toLowerCase().replace(/^https?:\/\//,'').replace(/^www\./,'').replace(/[\s\-().]/g,'').replace(/^\+?267/,'').replace(/\/$/,'');
+const when=t=>new Date(t).toLocaleDateString();
+const isAdm=()=>S.admin&&S.mode!=='public';
+const go=(t,m)=>{S.tab=t;if(m)S.mode=m;S.msg='';render()};
+
+function render(){
+  const a=document.activeElement;
+  if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&$('#app').contains(a)){S.dirty=true;return}
+  S.dirty=false;const t=S.tab,ad=isAdm();
+  const v=ad?(t==='review'?viewReview():t==='alerts'?viewAlerts():t==='chat'?viewChat():t==='admins'?viewAdmins():viewDash()):(t==='report'?viewReport():t==='chat'?viewChat():viewAlerts());
+  $('#app').className='wrap'+(ad?' admmode':'');
+  $('#app').replaceChildren(head(),nav(),S.msg&&h('div',{class:'note'},S.msg),v,h('p',{class:'mut'},FOOT));
+}
+addEventListener('focusout',()=>setTimeout(()=>{if(S.dirty)render()},60));
+
+function head(){
+  const out=S.user&&h('button',{onclick:()=>sb.auth.signOut()},'Sign out');
+  return isAdm()?h('div',{class:'abar'},h('div',{},h('strong',{},'Admin console'),h('div',{style:'font-size:.85rem;opacity:.85'},S.user.email)),h('div',{class:'row'},h('button',{onclick:()=>go('alerts','public')},'View as member'),out)):
+    h('div',{},h('h1',{},'Scam Watch BW'),h('p',{class:'sub'},'Report scams. Check numbers before you pay.'),h('div',{class:'row'},S.admin&&h('button',{onclick:()=>go('dash','admin')},'Back to admin console'),out));
+}
+function nav(){
+  const nw=S.reports.filter(r=>r.status==='received').length;
+  const T=isAdm()?[['dash','Dashboard'],['review','Review'+(nw?' ('+nw+')':'')],['alerts','Published'],['chat','Chat'],['admins','Admins']]:[['alerts','Alerts'],['report','Report'],['chat','Chat']];
+  return h('nav',{},T.map(([k,l])=>h('button',{class:S.tab===k?'p':'',onclick:()=>go(k)},l)));
+}
+function viewAuth(why){
+  if(DEMO)return h('div',{class:'card'},'Sign-in is switched off in preview mode. Connect Supabase (see the README) to try reporting and chat.');
+  const i=h('input',{type:'email',placeholder:'you@example.com'});
+  return h('div',{class:'card'},h('p',{},why),h('label',{},'Email'),i,h('p',{},h('button',{class:'p',onclick:async()=>{const {error}=await sb.auth.signInWithOtp({email:i.value.trim(),options:{emailRedirectTo:location.origin+location.pathname}});S.msg=error?error.message:'Check your email for a sign-in link.';render()}},'Email me a sign-in link')),h('p',{class:'mut'},'We only use your email to sign you in. It is never shown to anyone or attached to your reports.'));
+}
+
+/* Public alerts */
+function viewAlerts(){
+  const list=S.alerts.filter(a=>S.cat==='all'||a.category===S.cat).sort((x,y)=>(y.status==='confirmed')-(x.status==='confirmed')||y.report_count-x.report_count);
+  const q=h('input',{type:'search',placeholder:'Check a number, handle or website…',oninput:e=>{const v=norm(e.target.value);document.querySelectorAll('.alert').forEach(c=>{c.hidden=!!v&&!norm(c.dataset.i).includes(v)})}});
+  return h('div',{},h('div',{class:'card'},h('label',{},'Check before you pay'),q,h('p',{class:'mut'},'Reported means several independent people reported it. Confirmed means reviewers checked the evidence. Neither is a court finding. If you were scammed, contact the police and your bank or mobile money provider first.')),chips(),
+    list.length?list.map(alertCard):h('div',{class:'card mut'},S.cat==='all'?'No verified alerts yet.':'No alerts in this category yet.'),guide());
+}
+function chips(){
+  const c=n=>S.alerts.filter(a=>a.category===n).length;
+  const b=(k,l,n)=>h('button',{class:S.cat===k?'p':'',onclick:()=>{S.cat=k;render()}},l+(n?' ('+n+')':''));
+  return h('div',{class:'row',style:'margin:10px 0'},b('all','All',S.alerts.length),CATS.filter(n=>c(n)||S.cat===n).map(n=>b(n,n,c(n))));
+}
+function guide(){return h('details',{class:'card'},h('summary',{style:'cursor:pointer;font-weight:600'},'Common scam types and red flags'),CATS.map(n=>h('p',{},h('strong',{},n+': '),INFO[n])))}
+function alertCard(a){
+  return h('div',{class:'card alert','data-i':a.identifier},
+    h('div',{class:'row'},h('span',{class:'chip '+a.status},a.status==='confirmed'?'Confirmed scam':'Reported by '+a.report_count+' people'),h('span',{class:'mut'},a.category+' · '+a.channel)),
+    h('p',{class:'ident'},a.identifier),a.summary&&h('p',{},a.summary),
+    h('div',{class:'row'},h('span',{class:'mut'},'Updated '+when(a.updated_at)),
+      !isAdm()&&h('button',{onclick:()=>{S.form={...blank(),category:a.category,identifier:a.identifier,dispute:true};go('report')}},'Dispute this listing'),
+      isAdm()&&h('button',{onclick:async()=>{await sb.from('alerts').delete().eq('id',a.id);await load()}},'Remove')));
+}
+
+/* Report */
+function viewReport(){
+  if(!S.user)return viewAuth('Sign in to report a scam. This keeps spam out and lets reviewers check that reports come from different people.');
+  const f=S.form,fld=(l,e)=>h('div',{},h('label',{},l),e);
+  const inp=(k,t,at)=>{const e=h(t,{...at,oninput:ev=>{f[k]=ev.target.value}});e.value=f[k]||'';return e};
+  const sel=(k,o)=>{const e=h('select',{onchange:ev=>{f[k]=ev.target.value}},o.map(x=>h('option',{value:x},x)));e.value=f[k];return e};
+  return h('div',{class:'card'},h('div',{class:'note'},'Don’t include your name, phone number, ID number, address, card numbers or PINs. We only need details about the scam and the scammer.'),f.dispute&&h('div',{class:'note'},'You are disputing a listing. Explain why it is wrong.'),
+    fld('Type of scam',sel('category',CATS)),fld('How were you contacted?',sel('channel',CH)),
+    fld('Number, handle or website used by the scammer',inp('identifier','input',{type:'text'})),
+    fld(f.dispute?'Why is this listing wrong?':'What did they ask for or claim?',inp('claim','textarea',{rows:3})),
+    fld('Amount lost, if any (optional)',inp('amount','input',{type:'text'})),fld('Date it happened (optional)',inp('happened_on','input',{type:'date'})),
+    fld('Evidence: paste the message text or describe what you saw',inp('evidence','textarea',{rows:3})),
+    h('p',{},h('button',{class:'p',onclick:send},'Send report')));
+}
+async function send(){
+  const f=S.form;if(!f.identifier.trim()||!f.claim.trim()){S.msg='Add the number, handle or website, and what they asked for.';return render()}
+  const {error}=await sb.from('reports').insert({category:f.category,channel:f.channel,identifier:f.identifier.trim(),claim:f.claim.trim(),amount:f.amount||null,happened_on:f.happened_on||null,evidence:f.evidence||null,is_dispute:f.dispute});
+  S.msg=error?error.message:'Thank you. Your report was received and stays private until reviewers verify it.';
+  if(!error){S.form=blank();S.tab='alerts'}render();
+}
+
+/* Chat */
+async function fetchChat(){const c=await sb.from('chat_view').select('*').order('created_at',{ascending:false}).limit(100);S.chat=(c.data||[]).reverse()}
+const scrollChat=()=>setTimeout(()=>{const b=$('#cb');if(b)b.scrollTop=b.scrollHeight},0);
+function chatBox(){
+  return h('div',{class:'card',id:'cb',style:'max-height:50vh;overflow-y:auto'},S.chat.length?S.chat.map(m=>h('div',{style:'margin:10px 0'},
+    h('div',{class:'row'},h('span',{class:'chip'},m.handle+(m.mine?' (you)':'')),h('span',{class:'mut'},new Date(m.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})),
+      isAdm()&&h('button',{onclick:async()=>{await sb.from('messages').delete().eq('id',m.id);await fetchChat();render()}},'Delete')),h('p',{},m.body))):h('p',{class:'mut'},'No messages yet. Say hello.'));
+}
+function viewChat(){
+  if(!S.user)return viewAuth('Sign in to join the group chat.');
+  const ci=h('input',{id:'ci',type:'text',maxlength:'500',placeholder:'Write a message…',onkeydown:e=>{if(e.key==='Enter')say()}});scrollChat();
+  return h('div',{},h('div',{class:'note'},'House rules: no personal information (names, phone or ID numbers, addresses, bank details), no links, and be kind. Put scam numbers in a report instead. Admins can delete messages.'),chatBox(),h('div',{class:'row'},h('div',{style:'flex:1'},ci),h('button',{class:'p',onclick:say},'Send')),h('p',{class:'mut',id:'cw'}));
+}
+async function say(){
+  const c=$('#ci'),w=$('#cw'),t=c.value.trim();if(!t)return;
+  const {error}=await sb.from('messages').insert({body:t});if(error){w.textContent=error.message;return}
+  c.value='';w.textContent='';await fetchChat();const o=$('#cb');if(o){o.replaceWith(chatBox());scrollChat()}
+}
+setInterval(async()=>{if(S.user&&S.tab==='chat'){await fetchChat();const o=$('#cb');if(o){o.replaceWith(chatBox());scrollChat()}}},5000);
+
+/* Admin */
+function viewDash(){
+  const a=S.alerts,st=(n,l)=>h('div',{class:'card',style:'flex:1;min-width:120px;text-align:center'},h('div',{style:'font-size:1.6rem;font-weight:700'},String(n)),h('div',{class:'mut'},l));
+  return h('div',{},h('div',{class:'row'},st(S.reports.filter(r=>r.status==='received').length,'waiting for review'),st(a.filter(x=>x.status==='confirmed').length,'confirmed'),st(a.filter(x=>x.status==='reported').length,'reported'),st(S.chat.length,'recent messages')),
+    h('div',{class:'card'},h('p',{},'Use Review to check new reports, Published to remove or correct alerts, Chat to moderate, and Admins to add or remove people who can manage this site.')));
+}
+function viewAdmins(){
+  const i=h('input',{type:'email',placeholder:'new-admin@example.com'});
+  return h('div',{},h('div',{class:'card'},h('label',{},'Add an admin'),i,h('p',{},h('button',{class:'p',onclick:async()=>{const {error}=await sb.from('admins').insert({email:i.value.trim().toLowerCase()});S.msg=error?error.message:'Admin added. They sign in with that email.';await load()}},'Add admin')),h('p',{class:'mut'},'Admins can read all reports, publish or remove alerts, and delete chat messages. Only add people you trust.')),
+    h('div',{class:'card'},h('label',{},'Current admins'),S.admins.map(m=>h('div',{class:'row',style:'margin:8px 0'},h('span',{},m),m!==(S.user.email||'').toLowerCase()&&h('button',{onclick:async()=>{await sb.from('admins').delete().eq('email',m);await load()}},'Remove')))));
+}
+function viewReview(){
+  const rs=S.reports,wait=rs.filter(r=>r.status==='received'||r.status==='review'),sh=S.showAll?rs:wait;
+  return h('div',{},h('div',{class:'row'},h('span',{class:'mut'},wait.length+' waiting · '+rs.length+' total'),h('button',{onclick:()=>{S.showAll=!S.showAll;render()}},S.showAll?'Show waiting only':'Show all')),sh.length?sh.map(reviewCard):h('div',{class:'card mut'},'Nothing waiting.'));
+}
+function reviewCard(r){
+  const n=new Set(S.reports.filter(x=>x.identifier_norm===r.identifier_norm&&!x.is_dispute&&x.status!=='rejected').map(x=>x.user_id)).size;
+  const d=S.drafts[r.id]||(S.drafts[r.id]={sum:r.claim.slice(0,140),cat:r.category,ok:false}),dsp=r.is_dispute;
+  const sum=h('input',{type:'text',oninput:e=>{d.sum=e.target.value}});sum.value=d.sum;
+  const cs=h('select',{onchange:e=>{d.cat=e.target.value}},CATS.map(x=>h('option',{value:x},x)));cs.value=d.cat;
+  const conf=h('button',{class:'p',disabled:!d.ok,onclick:()=>act(r,'confirmed',d)},'Publish as Confirmed');
+  const ok=h('input',{type:'checkbox',onchange:e=>{d.ok=e.target.checked;conf.disabled=!d.ok}});ok.checked=d.ok;
+  return h('div',{class:'card'},
+    h('div',{class:'row'},h('span',{class:'chip'},r.status),dsp&&h('span',{class:'chip reported'},'Dispute'),h('span',{class:'mut'},r.category+' · '+r.channel+' · '+when(r.created_at))),
+    h('p',{class:'ident'},r.identifier),h('p',{},r.claim),r.amount&&h('p',{class:'mut'},'Amount: '+r.amount),r.happened_on&&h('p',{class:'mut'},'Happened: '+r.happened_on),r.evidence&&h('p',{class:'mut'},'Evidence: '+r.evidence),
+    !dsp&&h('p',{class:'mut'},n+' independent report'+(n===1?'':'s')+' for this identifier'),
+    dsp?h('div',{class:'note'},'Check the listing for this identifier. Remove it from Published if it is wrong.'):h('div',{},h('label',{},'Category'),cs,h('label',{},'Public summary (no names or victim details)'),sum,h('p',{},h('label',{style:'display:flex;align-items:center;font-weight:400'},ok,'I checked the evidence (messages, matching reports, domain or number details)'))),
+    h('div',{class:'row'},h('button',{onclick:()=>act(r,'review')},'Under review'),!dsp&&h('button',{class:'p',disabled:n<3,onclick:()=>act(r,'reported',d)},'Publish as Reported'),!dsp&&conf,h('button',{onclick:()=>act(r,dsp?'resolved':'rejected')},dsp?'Mark resolved':'Reject')),
+    !dsp&&n<3&&h('p',{class:'mut'},'Reported needs 3 independent reporters. Confirmed needs your evidence check.'));
+}
+async function act(r,status,d){
+  const res=(status==='reported'||status==='confirmed')?await sb.rpc('publish_alert',{p_report:r.id,p_status:status,p_summary:d.sum,p_category:d.cat}):await sb.from('reports').update({status}).eq('id',r.id);
+  S.msg=res.error?res.error.message:'Saved.';await load();
+}
+
+/* Data and session */
+async function load(){
+  if(DEMO){S.alerts=SAMPLE;S.msg='Preview mode: showing sample data. Add your Supabase details to config.js to go live.';render();return}
+  const a=await sb.from('alerts').select('*').order('updated_at',{ascending:false});
+  if(a.error)S.msg='Could not load data. Check config.js and the Supabase setup.';S.alerts=a.data||[];
+  if(S.user)await fetchChat();
+  if(S.admin){const r=await sb.from('reports').select('*').order('created_at',{ascending:false});S.reports=r.data||[];const m=await sb.from('admins').select('email');S.admins=(m.data||[]).map(x=>x.email)}
+  render();
+}
+async function setUser(u){
+  if(S.user&&u&&S.user.id===u.id){S.user=u;return}
+  S.user=u;S.admin=false;S.mode='public';S.reports=[];S.chat=[];
+  if(u){const r=await sb.rpc('is_admin');S.admin=r.data===true;if(S.admin){S.mode='admin';S.tab='dash'}}else if(S.tab!=='alerts')S.tab='alerts';
+  await load();
+}
+sb.auth.onAuthStateChange((_e,s)=>{setUser(s?s.user:null)});
+render();
+</script></body></html>
